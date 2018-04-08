@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>聊天室</title>
+</head>
+<body>
+  <div style="border: 1px soild black; width: 800px; height: 600px; background-image: url('resorce/chat.png'); background-repeat: no-repeat; background-size: 100%; margin: 0 auto">
+    <div id="content" style="width: 80%; height: 60%; display: inline-block; float: left;overflow: scroll;"></div>
+    <div style="width: 18%; height: 60%; display: inline-block; float: left;">
+      <ul id="right-content" style="list-style: none;">
+      </ul>
+    </div>
+    <div style="clear: both;"></div>
+    <div style="width: 100%; height: 40%">
+      <div class="privatechat" style="display: none;"><div class="privateperson"></div><div class="chatcancel" style="float: right;" onclick="chatcancel()">×</div></div>
+      <textarea id="message" autofocus="autofocus" style="height: 200px; width: 550px; resize: none; float: left;"></textarea>
+      <button id="send" style="margin-top: 183px">发送</button>
+    </div>
+  </div>
+  <script src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+  <script type="text/javascript">
+  		var username=getrequestparam("username");
+  		var privateuser="";
+		var wsUri = "ws://localhost:8080/mry/websocket?username="+username;
+		var ws = new WebSocket(wsUri);
+		function sendpojo(type,from,to,message){
+			this.type=type;
+			this.from=from;
+			this.to=to;
+			this.message=message;
+		}
+		ws.onopen = function(e){
+			var str="<div style='color: red'>连接成功...</div>"
+			$("#content").append(str);
+		}
+		ws.onmessage =function(e){
+			e=$.parseJSON(e.data)
+			if(e.type=='LOGIN'||e.type=='LOGOUT'){
+				var getusername = getstr(e.username);
+				$("#right-content").html("");
+				for(var i = 0 ; i<e.tousers.length ; i++){
+					varusername = e.tousers[i];
+					varusername = getstr(varusername);
+					if(varusername==username){
+						$("#right-content").append("<li style='color: red'>"+varusername+"</li>");
+					}else{
+						$("#right-content").append("<li onclick='makeprivatechat(\""+varusername+"\")'>"+varusername+"</li>");
+					}
+				}
+				if(getusername!=username){
+					var str=getstr(e.message);
+					$("#content").append("<div style='color: red'>"+str+"</div>");
+				}
+			}else{
+				var str=getstr(e.message);
+				$("#content").append("<div>"+str+"</div>");
+			}
+		}
+		//发送短信
+		$("#send").click(function(){
+			 if (ws.readyState === WebSocket.OPEN) {
+				 if(privateuser==""){
+					 var message=$("#message").val();
+			         ws.send(toall(message));
+			         $("#message").val(""); 
+				 }else{
+					 var message=$("#message").val();
+			         ws.send(toone(message));
+			         $("#message").val(""); 
+				 }
+		   }
+		});
+		
+		function toall(message){
+			var data = new sendpojo("TOALL",username,null,message);
+			return JSON.stringify(data);
+		}
+		
+		function toone(message){
+			var data = new sendpojo("CHAT",username,privateuser,message);
+			return JSON.stringify(data);
+		}
+		//私聊
+		function makeprivatechat(username){
+			$(".privatechat").css("display","block");
+			$(".privateperson").html("");
+			var str = "你正在对"+username+"说:";
+			$(".privateperson").append("<span>"+str+"</span>");
+			privateuser=username;
+		}
+		//私聊取消
+		function chatcancel(){
+			$(".privatechat").css("display","none");
+			$(".privateperson").html("");
+			privateuser="";
+		}
+		
+		//防止js注入
+		function getstr(str){
+			var span="<span></span>"
+			return $(span).html(str).text();
+		}
+		function getrequestparam(param){
+			   var url = location.search; 
+			   var result = "";
+			   if (url.indexOf("?") != -1) {  
+			      var str = url.substr(1);  
+			      strs = str.split("&");  
+			      for(var i = 0; i < strs.length; i ++) {  
+			         if(param==strs[i].split("=")[0]);
+			         result=strs[i].split("=")[1];  
+			      }  
+			   }  
+			   return result;  
+		}
+	</script>
+</body>
+</html>
